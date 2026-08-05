@@ -1,0 +1,7 @@
+
+# Ignorar la carpeta work completa
+work/
+
+# Ignorar el contenido de cualquier carpeta secret, pero conservar la carpeta
+**/secret/*
+!**/secret/.gitkeep
