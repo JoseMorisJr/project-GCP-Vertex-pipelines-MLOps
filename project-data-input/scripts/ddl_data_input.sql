@@ -94,7 +94,8 @@ CREATE OR REPLACE TABLE `gcp-data-bigquery-prod-us-east.hist_table.input_data`
   yrsold                    INT64,
   saletype                  STRING,
   salecondition             STRING,
-  date_subida               TIMESTAMP
+  date_subida_local         DATETIME,
+  date_subida_utc           TIMESTAMP
 )
 OPTIONS (
   description = "Datos de entrada para la predicción de precios de viviendas"

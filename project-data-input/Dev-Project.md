@@ -7,3 +7,12 @@
 3. Darle permisos a la cuenta de servicio en Big Query.
 
 4. Ejecutar el script de `ddl_data_input.sql` en la consola de BigQuery.
+
+5. Crear entorno de ejecucion con `uv`.
+    - Trasladarte desde la raiz del proyecto y ejecutar las siguientes lineas de codigo: 
+        cd .\project-data-input\     
+        uv venv  --python 3.9
+        .venv\Scripts\activate
+        uv pip install -r requirements.txt
+
+6. 

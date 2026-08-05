@@ -1,0 +1,8 @@
+pandas
+google-cloud-bigquery
+notebook
+ipykernel
+pyarrow
+pytz
+python-dotenv
+pandas-gbq
