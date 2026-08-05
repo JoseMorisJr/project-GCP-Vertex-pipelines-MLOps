@@ -1,0 +1,9 @@
+pandas
+google-cloud-storage
+google-cloud-bigquery
+notebook
+ipykernel
+python-dotenv
+pytz
+pandas-gbq
+scikit-learn==1.4.2
