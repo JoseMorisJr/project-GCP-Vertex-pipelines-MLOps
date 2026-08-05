@@ -15,4 +15,7 @@
         .venv\Scripts\activate
         uv pip install -r requirements.txt
 
-6. 
+6. Levantar el entorno de notebook desde la raiz de este proyecto.
+
+7. Ejecutar el notebook que se encuentra en scripts/Add_data_BQ.ipynb
+
