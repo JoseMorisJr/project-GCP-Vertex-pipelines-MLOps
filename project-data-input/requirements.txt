@@ -1,4 +1,6 @@
 pandas
+joblib
+scikit-learn
 google-cloud-bigquery
 notebook
 ipykernel
