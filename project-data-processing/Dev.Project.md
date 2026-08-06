@@ -26,3 +26,5 @@
 9. Ejecutar el sql que se encuentra en scripts/ddl_data_input.sql en la consola de BigQuery del proyecto
 
 10. Ejecutar el notebook que se encuentra en scripts/Add_data_BQ.ipynb
+
+11. 
