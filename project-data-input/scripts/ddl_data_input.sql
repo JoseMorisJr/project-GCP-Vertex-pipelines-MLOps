@@ -15,6 +15,7 @@ OPTIONS (
 CREATE OR REPLACE TABLE `gcp-data-bigquery-prod-us-east.hist_table.input_data` 
 (
   id                        INT64,
+  periodo                   STRING,
   mssubclass                INT64,
   mszoning                  STRING,
   lotfrontage               FLOAT64,
