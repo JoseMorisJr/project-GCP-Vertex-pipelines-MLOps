@@ -1,0 +1,295 @@
+{
+  "pipelineSpec": {
+    "components": {
+      "comp-filter-input": {
+        "executorLabel": "exec-filter-input",
+        "inputDefinitions": {
+          "parameters": {
+            "periodo": {
+              "type": "STRING"
+            },
+            "run_id": {
+              "type": "STRING"
+            }
+          }
+        },
+        "outputDefinitions": {
+          "parameters": {
+            "Output": {
+              "type": "STRING"
+            }
+          }
+        }
+      },
+      "comp-process-predict": {
+        "executorLabel": "exec-process-predict",
+        "inputDefinitions": {
+          "parameters": {
+            "periodo": {
+              "type": "STRING"
+            },
+            "pipeline_name": {
+              "type": "STRING"
+            },
+            "run_id": {
+              "type": "STRING"
+            }
+          }
+        },
+        "outputDefinitions": {
+          "parameters": {
+            "Output": {
+              "type": "STRING"
+            }
+          }
+        }
+      },
+      "comp-send-out": {
+        "executorLabel": "exec-send-out",
+        "inputDefinitions": {
+          "parameters": {
+            "periodo": {
+              "type": "STRING"
+            }
+          }
+        }
+      },
+      "comp-transform-data": {
+        "executorLabel": "exec-transform-data",
+        "inputDefinitions": {
+          "parameters": {
+            "periodo": {
+              "type": "STRING"
+            },
+            "run_id": {
+              "type": "STRING"
+            }
+          }
+        },
+        "outputDefinitions": {
+          "parameters": {
+            "periodo_out": {
+              "type": "STRING"
+            },
+            "pipeline_name": {
+              "type": "STRING"
+            }
+          }
+        }
+      }
+    },
+    "deploymentSpec": {
+      "executors": {
+        "exec-filter-input": {
+          "container": {
+            "args": [
+              "--executor_input",
+              "{{$}}",
+              "--function_to_execute",
+              "filter_input"
+            ],
+            "command": [
+              "sh",
+              "-c",
+              "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'pyarrow==9.0.0' 'numpy==1.26.4' 'pandas==1.5.3' 'google-cloud-bigquery==2.34.4' 'pytz' 'python-dotenv' 'kfp==1.8.21' && \"$0\" \"$@\"\n",
+              "sh",
+              "-ec",
+              "program_path=$(mktemp -d)\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\npython3 -m kfp.v2.components.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+              "\nimport kfp\nfrom kfp.v2 import dsl\nfrom kfp.v2.dsl import *\nfrom typing import *\n\ndef filter_input(\n    periodo: str, \n    run_id: str\n) -> str:\n\n    import os\n    from google.cloud import bigquery\n    from dotenv import load_dotenv \n    from datetime import datetime\n    import pytz\n    from google.api_core.exceptions import NotFound\n    import pandas as pd\n\n    load_dotenv()\n\n    # Name Project\n    project_id = os.getenv(\"GCP_PROJECT_ID\")\n\n    # Tablas BigQuery inputs\n    project_id_input = os.getenv(\"GCP_PROJECT_ID_INPUT\")\n    dataset_id_input = os.getenv(\"BQ_DATASET_ID_INPUT\")\n    table_id_input = os.getenv(\"BQ_TABLE_ID_INPUT\")\n\n    # Tablas features\n    dataset_id_features = os.getenv(\"BQ_DATASET_ID_FEATURES\")\n    table_id_features = os.getenv(\"BQ_TABLE_ID_FEATURES\")\n\n    # Tablas temporales\n    dataset_temp = os.getenv(\"BQ_DATASET_ID_TEMP\")\n    table_temp_data_input = os.getenv(\"BQ_TABLE_ID_TEMP_DATA\")\n\n\n    # Carga de BigQuery\n    client = bigquery.Client(project=project_id)\n\n    path_bq_table = f\"{project_id_input}.{dataset_id_input}.{table_id_input}\"\n\n    dfInput = client.query(\n            f'''SELECT * EXCEPT(date_subida_local,date_subida_utc)\n            FROM `{path_bq_table}` where periodo = '{periodo}'\n            '''\n        ).to_dataframe()\n\n    path_bq_table_feature = f\"{project_id}.{dataset_id_features}.{table_id_features}\"\n    dfFeatures = client.query(\n            f'''SELECT * FROM `{path_bq_table_feature}`\n            '''\n        ).to_dataframe()\n\n    listFeatures = dfFeatures['features'].tolist()\n\n    dfInputFeat = dfInput[['id','periodo'] + listFeatures].copy()\n\n    user_id = client.query(\"SELECT SESSION_USER()\").to_dataframe().iloc[0, 0]\n    fecha_carga = datetime.now(pytz.timezone(\"America/Lima\"))\n\n    dfInputFeat['run_id'] = run_id\n    dfInputFeat['creation_user'] = user_id\n    dfInputFeat['str_process_date_local'] = fecha_carga.replace(tzinfo=None).strftime('%Y%m%d')\n    dfInputFeat['process_datetime_local'] = fecha_carga.replace(tzinfo=None)\n    dfInputFeat['process_datetime_utc'] = fecha_carga.astimezone(pytz.UTC)\n\n\n    dfInputFeat = dfInputFeat[  ['id','periodo'] \n                            + listFeatures \n                            + ['run_id','creation_user','str_process_date_local','process_datetime_local','process_datetime_utc']]\n    periodo_out = str(dfInputFeat['periodo'].iloc[0])\n\n    # Validacion de duplicados: \n    dfVAlDup = dfInputFeat.groupby(['id','periodo']).size().reset_index().rename(columns = {0:'cant'})\n    Res = dfVAlDup[dfVAlDup['cant'] > 1]\n\n    if Res.shape[0] > 0:\n        print(f\"Error de duplicados: {Res.shape[0]} casos\")\n        print(Res)\n        exit()\n\n    path_bq_data_input = f\"{project_id}.{dataset_temp}.{table_temp_data_input}\"\n    try:\n        delete_query = f\"\"\"\n            DELETE FROM `{path_bq_data_input}`\n            WHERE periodo = '{periodo}'\n        \"\"\"\n        delete_job = client.query(delete_query)\n        delete_job.result()\n        print(f\"Registros previos eliminados para per\u00edodo {periodo}.\")\n\n    except NotFound:\n        print(\"La tabla destino no existe a\u00fan; se crear\u00e1 durante la carga.\")\n\n    job_config = bigquery.LoadJobConfig(\n        write_disposition=\"WRITE_APPEND\"\n    )\n    job = client.load_table_from_dataframe(\n        dfInputFeat,\n        path_bq_data_input,\n        job_config=job_config\n    )\n    job.result()\n    print(f\"Tabla cargada: {path_bq_data_input}\") \n\n    return periodo_out\n\n"
+            ],
+            "image": "python:3.7"
+          }
+        },
+        "exec-process-predict": {
+          "container": {
+            "args": [
+              "--executor_input",
+              "{{$}}",
+              "--function_to_execute",
+              "process_predict"
+            ],
+            "command": [
+              "sh",
+              "-c",
+              "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'numpy==1.26.4' 'pyarrow==9.0.0' 'pandas==1.5.3' 'google-cloud-storage' 'google-cloud-bigquery==2.34.4' 'scikit-learn==1.4.2' 'python-dotenv' 'pytz' 'kfp==1.8.21' && \"$0\" \"$@\"\n",
+              "sh",
+              "-ec",
+              "program_path=$(mktemp -d)\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\npython3 -m kfp.v2.components.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+              "\nimport kfp\nfrom kfp.v2 import dsl\nfrom kfp.v2.dsl import *\nfrom typing import *\n\ndef process_predict(\n    periodo: str,\n    run_id: str,\n    pipeline_name: str\n) -> str:\n\n    import os\n    from google.cloud import storage\n    from google.cloud import bigquery\n    from google.api_core.exceptions import NotFound\n    from dotenv import load_dotenv\n    import pandas as pd\n    import joblib\n    from io import BytesIO\n    from datetime import datetime\n    import pytz\n\n\n    load_dotenv()\n\n    # Name Project\n    project_id = os.getenv(\"GCP_PROJECT_ID\")\n    bucket_name = os.getenv(\"GCP_BUCKET_NAME\")\n    model_ruta = os.getenv(\"MODEL_ROOT\")\n\n    # Tablas temporales\n    dataset_temp = os.getenv(\"BQ_DATASET_ID_TEMP\")\n    table_temp_data_transf_input = os.getenv(\"BQ_TABLE_ID_TEMP_DATA_TRANSF\")\n    table_temp_data_predict = os.getenv(\"BQ_TABLE_ID_TEMP_DATA_PREDICT\")\n\n\n    model_name  = \"Model-GradientBoostingRegressor.joblib\"\n    model_path = f\"{model_ruta}/{model_name}\"\n\n    # Cliente de Cloud Storage\n    client = storage.Client(project=project_id)\n    bucket = client.bucket(bucket_name)\n    blob = bucket.blob(model_path)\n    contenido_joblib  = blob.download_as_bytes()\n    modelo = joblib.load(BytesIO(contenido_joblib))\n    print(\"Archivo JOBLIB cargado correctamente \u2705\")\n    print(type(modelo))\n\n    # Cliente BigQuery\n    client = bigquery.Client(project=project_id)\n\n    path_bq_data_transf_input = f\"{project_id}.{dataset_temp}.{table_temp_data_transf_input}\"\n    dfInputFeatTransf = client.query(\n            f'''SELECT * EXCEPT(run_id, creation_user, str_process_date_local, process_datetime_local, process_datetime_utc)\n            FROM `{path_bq_data_transf_input}` where periodo = '{periodo}'\n            '''\n    ).to_dataframe()\n    dfInputFeatTransf['saleprice_predict'] = modelo.predict(dfInputFeatTransf.drop(columns = ['id','periodo']))\n    dfPredict = dfInputFeatTransf[['id','saleprice_predict']].copy()\n\n    user_id = client.query(\"SELECT SESSION_USER()\").to_dataframe().iloc[0, 0]\n    fecha_carga = datetime.now(pytz.timezone(\"America/Lima\"))\n    periodo_out = str(dfInputFeatTransf.periodo[0])\n    model_name = model_path.split('/')[-1]\n\n    dfPredict['run_id'] = run_id\n    dfPredict['creation_user'] = user_id\n    dfPredict['str_process_date_local'] = fecha_carga.replace(tzinfo=None).strftime('%Y%m%d')\n    dfPredict['process_datetime_local'] = fecha_carga.replace(tzinfo=None)\n    dfPredict['process_datetime_utc'] = fecha_carga.astimezone(pytz.UTC)\n    dfPredict['periodo'] = periodo_out\n    dfPredict['model_name'] = model_name\n\n    dfPredict =  dfPredict[\n            ['id','periodo','saleprice_predict','model_name','run_id','creation_user','str_process_date_local',\n            'process_datetime_local','process_datetime_utc']\n    ].copy()\n\n    path_bq_data_predict = f\"{project_id}.{dataset_temp}.{table_temp_data_predict}\"\n    try:\n        delete_query = f\"\"\"\n            DELETE FROM `{path_bq_data_predict}`\n            WHERE periodo = '{periodo}'\n        \"\"\"\n        delete_job = client.query(delete_query)\n        delete_job.result()\n        print(f\"Registros previos eliminados para per\u00edodo {periodo}.\")\n\n    except NotFound:\n        print(\"La tabla destino no existe a\u00fan; se crear\u00e1 durante la carga.\")\n\n    job_config = bigquery.LoadJobConfig(\n        write_disposition=\"WRITE_APPEND\"\n    )\n    job = client.load_table_from_dataframe(\n        dfPredict,\n        path_bq_data_predict,\n        job_config=job_config\n    )\n    job.result()\n    print(f\"Tabla cargada: {path_bq_data_predict}\") \n\n    table_id_auditoria = f\"{project_id}.{dataset_temp}.model_execution_audit\"\n    user_id = client.query(\"SELECT SESSION_USER()\").to_dataframe().iloc[0, 0]\n    fecha_carga = datetime.now(pytz.timezone(\"America/Lima\"))\n    df_auditoria = pd.DataFrame([{\n        \"periodo\": periodo_out,\n        \"run_id\" : run_id,\n        \"model_name\": model_name,\n        \"model_path_gcs\": f\"gs://{bucket_name}/{model_path}\",\n        \"pipeline_path_gcs\": (\n            f\"gs://{bucket_name}/{model_ruta}/{pipeline_name}\"\n        ),\n        \"rows_processed\": len(dfPredict),\n        \"str_process_date_local\": fecha_carga.replace(tzinfo=None).strftime('%Y%m%d'),\n        \"process_datetime_local\": fecha_carga.replace(tzinfo=None),\n        \"process_datetime_utc\": fecha_carga.astimezone(pytz.UTC)\n    }])\n    job_config = bigquery.LoadJobConfig(\n        write_disposition=\"WRITE_APPEND\"\n    )\n    job = client.load_table_from_dataframe(\n        df_auditoria,\n        table_id_auditoria,\n        job_config=job_config\n    )\n    job.result()\n    print(f\"Auditor\u00eda registrada en: {table_id_auditoria}\")\n\n    return periodo_out\n\n"
+            ],
+            "image": "python:3.7"
+          }
+        },
+        "exec-send-out": {
+          "container": {
+            "args": [
+              "--executor_input",
+              "{{$}}",
+              "--function_to_execute",
+              "send_out"
+            ],
+            "command": [
+              "sh",
+              "-c",
+              "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'numpy==1.26.4' 'pyarrow==9.0.0' 'pandas==1.5.3' 'google-cloud-bigquery==2.34.4' 'python-dotenv' 'pytz' 'kfp==1.8.21' && \"$0\" \"$@\"\n",
+              "sh",
+              "-ec",
+              "program_path=$(mktemp -d)\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\npython3 -m kfp.v2.components.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+              "\nimport kfp\nfrom kfp.v2 import dsl\nfrom kfp.v2.dsl import *\nfrom typing import *\n\ndef send_out(\n    periodo: str\n):\n\n    import os\n    from google.cloud import bigquery\n    from google.api_core.exceptions import NotFound\n    from dotenv import load_dotenv\n    import pandas as pd\n    import pytz\n    from datetime import datetime\n\n\n    load_dotenv()\n\n    # Name Project\n    project_id = os.getenv(\"GCP_PROJECT_ID\")\n\n    # Tablas Ouputs\n    project_id_out = os.getenv(\"GCP_PROJECT_ID_OUT\")\n    dataset_id_out = os.getenv(\"BQ_DATASET_ID_OUT\")\n    table_out = os.getenv(\"BQ_TABLE_ID_OUT\")\n    table_out_hist = os.getenv(\"BQ_TABLE_ID_OUT_HIST\")\n\n\n    # Cliente BigQuery\n    client = bigquery.Client(project=project_id)\n\n    query = f\"\"\"\n    CALL `gcp-processing-vertex-prod-us.dev_table.sp_table_out_model` ('{periodo}')\n    \"\"\"\n    job = client.query(query)\n    dfOut = job.result().to_dataframe()\n    fecha_carga = datetime.now(pytz.timezone(\"America/Lima\"))\n    dfOut['str_process_date_local'] = fecha_carga.replace(tzinfo=None).strftime('%Y%m%d')\n    dfOut['process_datetime_local'] = fecha_carga.replace(tzinfo=None)\n    dfOut['process_datetime_utc'] = fecha_carga.astimezone(pytz.UTC)\n\n    table_id_out_hist = f'{project_id_out}.{dataset_id_out}.{table_out_hist}'\n    try:\n        delete_query = f\"\"\"\n            DELETE FROM `{table_id_out_hist}`\n            WHERE periodo = '{periodo}'\n        \"\"\"\n        delete_job = client.query(delete_query)\n        delete_job.result()\n        print(f\"Registros previos eliminados para per\u00edodo {periodo}.\")\n\n    except NotFound:\n        print(\"La tabla destino no existe a\u00fan; se crear\u00e1 durante la carga.\")\n\n    job_config = bigquery.LoadJobConfig(\n        write_disposition=\"WRITE_APPEND\"\n    )\n    job = client.load_table_from_dataframe(\n        dfOut,\n        table_id_out_hist,\n        job_config=job_config\n    )\n    job.result()\n    print(f\"Subida a PRD registrada en: {table_id_out_hist}\")\n\n    table_id_out = f'{project_id_out}.{dataset_id_out}.{table_out}'\n    try:\n        delete_query = f\"\"\"\n            DELETE FROM `{table_id_out}`\n            WHERE periodo = '{periodo}'\n        \"\"\"\n        delete_job = client.query(delete_query)\n        delete_job.result()\n        print(f\"Registros previos eliminados para per\u00edodo {periodo}.\")\n\n    except NotFound:\n        print(\"La tabla destino no existe a\u00fan; se crear\u00e1 durante la carga.\")\n\n    job_config = bigquery.LoadJobConfig(\n        write_disposition=\"WRITE_TRUNCATE\"\n    )\n    job = client.load_table_from_dataframe(\n        dfOut,\n        table_id_out,\n        job_config=job_config\n    )\n    job.result()\n    print(f\"Subida a PRD registrada en: {table_id_out}\")\n\n"
+            ],
+            "image": "python:3.7"
+          }
+        },
+        "exec-transform-data": {
+          "container": {
+            "args": [
+              "--executor_input",
+              "{{$}}",
+              "--function_to_execute",
+              "transform_data"
+            ],
+            "command": [
+              "sh",
+              "-c",
+              "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'numpy==1.26.4' 'pyarrow==9.0.0' 'pandas==1.5.3' 'google-cloud-storage' 'google-cloud-bigquery==2.34.4' 'scikit-learn==1.4.2' 'python-dotenv' 'joblib' 'pytz' 'kfp==1.8.21' && \"$0\" \"$@\"\n",
+              "sh",
+              "-ec",
+              "program_path=$(mktemp -d)\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\npython3 -m kfp.v2.components.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+              "\nimport kfp\nfrom kfp.v2 import dsl\nfrom kfp.v2.dsl import *\nfrom typing import *\n\ndef transform_data(\n    periodo: str,\n    run_id: str\n) -> TransformOutputs:\n\n    import os\n    from dotenv import load_dotenv\n    from google.cloud import storage\n    from google.cloud import bigquery\n    from google.api_core.exceptions import NotFound\n    import types\n    import joblib\n    import sys\n    from io import BytesIO\n    from datetime import datetime\n    import pandas as pd\n    import pytz\n\n    load_dotenv()\n\n    # Name Project\n    project_id = os.getenv(\"GCP_PROJECT_ID\")\n\n    # Ruta Storage\n    pipeline_ruta = os.getenv(\"PIPELINE_ROOT\")\n    bucket_name = os.getenv(\"GCP_BUCKET_NAME\")\n\n    # Tablas temporales\n    dataset_temp = os.getenv(\"BQ_DATASET_ID_TEMP\")\n    table_temp_data_input = os.getenv(\"BQ_TABLE_ID_TEMP_DATA\")\n    table_temp_data_transf_input = os.getenv(\"BQ_TABLE_ID_TEMP_DATA_TRANSF\")\n\n\n    # Cliente de Cloud Storage\n    client = storage.Client(project=project_id)\n    bucket = client.bucket(bucket_name)\n\n    metadata_name = 'metadata_transformer.py'\n    metadata_path = f\"{pipeline_ruta}/{metadata_name}\"\n    blob = bucket.blob(metadata_path)\n    module_code  = blob.download_as_text(encoding=\"utf-8\")\n    print(\"Archivo PY cargado correctamente \u2705\")\n    print(type(module_code))\n    metadata_transformer = types.ModuleType('metadata_transformer')\n    metadata_transformer.__file__ = \"gs://.../metadata_transformer.py\"\n    sys.modules['metadata_transformer'] = metadata_transformer\n    exec(compile(module_code, metadata_transformer.__file__, \"exec\"),\n        metadata_transformer.__dict__)\n\n    pipeline_name = 'Pipeline-Transformacion-Training.joblib'\n    pipeline_path = f\"{pipeline_ruta}/{pipeline_name}\"\n    blob = bucket.blob(pipeline_path)\n    contenido_joblib  = blob.download_as_bytes()\n    pipeline = joblib.load(BytesIO(contenido_joblib))\n    print(\"Archivo JOBLIB cargado correctamente \u2705\")\n    print(type(pipeline))\n\n\n    # Cliente BigQuery\n    client = bigquery.Client(project=project_id)\n    path_bq_data_input = f\"{project_id}.{dataset_temp}.{table_temp_data_input}\"\n    dfInputFeat = client.query(\n            f'''SELECT * EXCEPT(run_id, creation_user, str_process_date_local, process_datetime_local, process_datetime_utc)\n            FROM `{path_bq_data_input}` where periodo = '{periodo}'\n            '''\n    ).to_dataframe()\n\n    X_escalado = pipeline.transform(dfInputFeat)\n    feature_order = pipeline.named_steps[\n        \"feature_engineering\"\n    ].get_feature_names_out()\n    col_orden = [col + '_transf' for col in feature_order]\n\n    dfInputFeatTransf = pd.DataFrame(\n        X_escalado,\n        columns = col_orden,\n        index=  dfInputFeat.index,\n    )\n\n    user_id = client.query(\"SELECT SESSION_USER()\").to_dataframe().iloc[0, 0]\n    fecha_carga = datetime.now(pytz.timezone(\"America/Lima\"))\n    periodo_out = str(dfInputFeat.periodo[0])\n\n    dfInputFeatTransf['id'] = dfInputFeat['id']\n    dfInputFeatTransf['run_id'] = run_id\n    dfInputFeatTransf['creation_user'] = user_id\n    dfInputFeatTransf['str_process_date_local'] = fecha_carga.replace(tzinfo=None).strftime('%Y%m%d')\n    dfInputFeatTransf['process_datetime_local'] = fecha_carga.replace(tzinfo=None)\n    dfInputFeatTransf['process_datetime_utc'] = fecha_carga.astimezone(pytz.UTC)\n    dfInputFeatTransf['periodo'] = periodo_out\n\n    dfInputFeatTransf = dfInputFeatTransf[\n                                        ['id','periodo'] \n                                        + col_orden \n                                        + ['run_id','creation_user','str_process_date_local','process_datetime_local','process_datetime_utc']\n                    ]\n\n    path_bq_data_transf_input = f\"{project_id}.{dataset_temp}.{table_temp_data_transf_input}\"\n    try:\n        delete_query = f\"\"\"\n            DELETE FROM `{path_bq_data_transf_input}`\n            WHERE periodo = '{periodo}'\n        \"\"\"\n        delete_job = client.query(delete_query)\n        delete_job.result()\n        print(f\"Registros previos eliminados para per\u00edodo {periodo}.\")\n\n    except NotFound:\n        print(\"La tabla destino no existe a\u00fan; se crear\u00e1 durante la carga.\")\n\n    job_config = bigquery.LoadJobConfig(\n        write_disposition=\"WRITE_APPEND\"\n    )\n    job = client.load_table_from_dataframe(\n        dfInputFeatTransf,\n        path_bq_data_transf_input,\n        job_config=job_config\n    )\n    job.result()\n    print(f\"Tabla cargada: {path_bq_data_transf_input}\")\n\n    return periodo_out, pipeline_name\n\n"
+            ],
+            "image": "python:3.7"
+          }
+        }
+      }
+    },
+    "pipelineInfo": {
+      "name": "pipeline-data-processing-predict"
+    },
+    "root": {
+      "dag": {
+        "tasks": {
+          "filter-input": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-filter-input"
+            },
+            "inputs": {
+              "parameters": {
+                "periodo": {
+                  "componentInputParameter": "AAAAMM"
+                },
+                "run_id": {
+                  "componentInputParameter": "run_id"
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "FILTER DATA INPUT"
+            }
+          },
+          "process-predict": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-process-predict"
+            },
+            "dependentTasks": [
+              "transform-data"
+            ],
+            "inputs": {
+              "parameters": {
+                "periodo": {
+                  "taskOutputParameter": {
+                    "outputParameterKey": "periodo_out",
+                    "producerTask": "transform-data"
+                  }
+                },
+                "pipeline_name": {
+                  "taskOutputParameter": {
+                    "outputParameterKey": "pipeline_name",
+                    "producerTask": "transform-data"
+                  }
+                },
+                "run_id": {
+                  "componentInputParameter": "run_id"
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "PROCESS PREDICT"
+            }
+          },
+          "send-out": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-send-out"
+            },
+            "dependentTasks": [
+              "process-predict"
+            ],
+            "inputs": {
+              "parameters": {
+                "periodo": {
+                  "taskOutputParameter": {
+                    "outputParameterKey": "Output",
+                    "producerTask": "process-predict"
+                  }
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "SEND OUT"
+            }
+          },
+          "transform-data": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-transform-data"
+            },
+            "dependentTasks": [
+              "filter-input"
+            ],
+            "inputs": {
+              "parameters": {
+                "periodo": {
+                  "taskOutputParameter": {
+                    "outputParameterKey": "Output",
+                    "producerTask": "filter-input"
+                  }
+                },
+                "run_id": {
+                  "componentInputParameter": "run_id"
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "TRANSFORM DATA"
+            }
+          }
+        }
+      },
+      "inputDefinitions": {
+        "parameters": {
+          "AAAAMM": {
+            "type": "STRING"
+          },
+          "run_id": {
+            "type": "STRING"
+          }
+        }
+      }
+    },
+    "schemaVersion": "2.0.0",
+    "sdkVersion": "kfp-1.8.21"
+  },
+  "runtimeConfig": {
+    "gcsOutputDirectory": "gs://gcp-processing-storage-prod/project-pipeline-predictions-casas"
+  }
+}
