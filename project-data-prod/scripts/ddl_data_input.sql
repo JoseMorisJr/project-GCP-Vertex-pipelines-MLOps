@@ -38,8 +38,9 @@ garagecars                                  float64,
 garagearea                                  float64,
 yrsold                                        Int64,
 saleprice                                   float64,
-date_subida_local                          DATETIME,
-date_subida_utc                           TIMESTAMP
+str_process_date_local                       STRING,
+process_datetime_local                     DATETIME,
+process_datetime_utc                      TIMESTAMP
 
 )
 OPTIONS (
@@ -77,8 +78,9 @@ garagecars                                  float64,
 garagearea                                  float64,
 yrsold                                        Int64,
 saleprice                                   float64,
-date_subida_local                          DATETIME,
-date_subida_utc                           TIMESTAMP
+str_process_date_local                       STRING,
+process_datetime_local                     DATETIME,
+process_datetime_utc                      TIMESTAMP
 
 )
 OPTIONS (
