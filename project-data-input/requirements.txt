@@ -1,6 +1,7 @@
+numpy==1.26.4
 pandas
 joblib
-scikit-learn
+scikit-learn==1.4.2
 google-cloud-bigquery
 notebook
 ipykernel
