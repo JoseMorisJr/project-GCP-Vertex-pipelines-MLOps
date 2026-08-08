@@ -14,7 +14,7 @@
 
 6. Crear entorno de ejecucion con `uv`.
     - Trasladarte desde la raiz del proyecto y ejecutar las siguientes lineas de codigo: 
-        cd .\project-data-processing\     
+        cd .\project-data-processing\   
         uv venv  --python 3.9
         .venv\Scripts\activate
         uv pip install -r requirements.txt

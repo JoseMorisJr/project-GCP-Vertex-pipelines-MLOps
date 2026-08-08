@@ -1,5 +1,5 @@
 
-## Permisos para Cuenta Servicio 
+## Permisos para Cuenta Servicio (sa-processing-crun-vertex-prod@gcp-processing-vertex-prod-us.iam.gserviceaccount.com)
 
 Para la cuenta de servicio creada se le asignan los siguientes permisos:
 
@@ -64,7 +64,31 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
     - Editor de storage
     - Creador de objetos de storage
     - Visualizador de objetos de storage
+    - Usuario de objetos de storage
     - Visualizador de datos de BigQuery
     - Editor de datos de BigQuery
 
-4. 
+
+## Permisos para Cuenta Servicio (sa-scheduler-scheduler-prod-01@gcp-processing-vertex-prod-us.iam.gserviceaccount.com)
+
+Para la cuenta de servicio creada se le asignan los siguientes permisos:
+
+1. A nivel del proyecto `gcp-processing-vertex-prod-us`:
+    - Invocador de Cloud Run
+
+
+## Permisos para Cuenta Servicio (sa-crun-crun-prod-01@gcp-processing-vertex-prod-us.iam.gserviceaccount.com)
+
+Para la cuenta de servicio creada se le asignan los siguientes permisos:
+
+1. A nivel del proyecto `gcp-processing-vertex-prod-us`:
+    - Ejecutor de trabajos de Cloud Run
+
+
+## Impersonalzicion de SA de Scheduler a Cloud Run 
+
+- Usuario de cuenta de servicio.
+
+## Impersonalzicion de SA de Cloud Run a Vertex 
+
+- Usuario de cuenta de servicio.
