@@ -1,6 +1,142 @@
 {
   "pipelineSpec": {
     "components": {
+      "comp-exit-handler-1": {
+        "dag": {
+          "tasks": {
+            "filter-input": {
+              "cachingOptions": {
+                "enableCache": true
+              },
+              "componentRef": {
+                "name": "comp-filter-input"
+              },
+              "inputs": {
+                "parameters": {
+                  "config_json": {
+                    "componentInputParameter": "pipelineparam--config_json_t"
+                  },
+                  "periodo": {
+                    "componentInputParameter": "pipelineparam--AAAAMM"
+                  },
+                  "run_id": {
+                    "componentInputParameter": "pipelineparam--run_id"
+                  }
+                }
+              },
+              "taskInfo": {
+                "name": "FILTER DATA INPUT"
+              }
+            },
+            "process-predict": {
+              "cachingOptions": {
+                "enableCache": true
+              },
+              "componentRef": {
+                "name": "comp-process-predict"
+              },
+              "dependentTasks": [
+                "transform-data"
+              ],
+              "inputs": {
+                "parameters": {
+                  "config_json": {
+                    "componentInputParameter": "pipelineparam--config_json_t"
+                  },
+                  "periodo": {
+                    "taskOutputParameter": {
+                      "outputParameterKey": "periodo_out",
+                      "producerTask": "transform-data"
+                    }
+                  },
+                  "pipeline_name": {
+                    "taskOutputParameter": {
+                      "outputParameterKey": "pipeline_name",
+                      "producerTask": "transform-data"
+                    }
+                  },
+                  "run_id": {
+                    "componentInputParameter": "pipelineparam--run_id"
+                  }
+                }
+              },
+              "taskInfo": {
+                "name": "PROCESS PREDICT"
+              }
+            },
+            "send-out": {
+              "cachingOptions": {
+                "enableCache": true
+              },
+              "componentRef": {
+                "name": "comp-send-out"
+              },
+              "dependentTasks": [
+                "process-predict"
+              ],
+              "inputs": {
+                "parameters": {
+                  "config_json": {
+                    "componentInputParameter": "pipelineparam--config_json_t"
+                  },
+                  "periodo": {
+                    "taskOutputParameter": {
+                      "outputParameterKey": "Output",
+                      "producerTask": "process-predict"
+                    }
+                  }
+                }
+              },
+              "taskInfo": {
+                "name": "SEND OUT"
+              }
+            },
+            "transform-data": {
+              "cachingOptions": {
+                "enableCache": true
+              },
+              "componentRef": {
+                "name": "comp-transform-data"
+              },
+              "dependentTasks": [
+                "filter-input"
+              ],
+              "inputs": {
+                "parameters": {
+                  "config_json": {
+                    "componentInputParameter": "pipelineparam--config_json_t"
+                  },
+                  "periodo": {
+                    "taskOutputParameter": {
+                      "outputParameterKey": "Output",
+                      "producerTask": "filter-input"
+                    }
+                  },
+                  "run_id": {
+                    "componentInputParameter": "pipelineparam--run_id"
+                  }
+                }
+              },
+              "taskInfo": {
+                "name": "TRANSFORM DATA"
+              }
+            }
+          }
+        },
+        "inputDefinitions": {
+          "parameters": {
+            "pipelineparam--AAAAMM": {
+              "type": "STRING"
+            },
+            "pipelineparam--config_json_t": {
+              "type": "STRING"
+            },
+            "pipelineparam--run_id": {
+              "type": "STRING"
+            }
+          }
+        }
+      },
       "comp-filter-input": {
         "executorLabel": "exec-filter-input",
         "inputDefinitions": {
@@ -88,6 +224,19 @@
             }
           }
         }
+      },
+      "comp-vertex-pipelines-notification-email": {
+        "executorLabel": "exec-vertex-pipelines-notification-email",
+        "inputDefinitions": {
+          "parameters": {
+            "pipeline_task_final_status": {
+              "type": "STRING"
+            },
+            "recipients": {
+              "type": "STRING"
+            }
+          }
+        }
       }
     },
     "deploymentSpec": {
@@ -171,6 +320,23 @@
             ],
             "image": "python:3.9-slim"
           }
+        },
+        "exec-vertex-pipelines-notification-email": {
+          "container": {
+            "args": [
+              "--type",
+              "VertexNotificationEmail",
+              "--payload",
+              ""
+            ],
+            "command": [
+              "python3",
+              "-u",
+              "-m",
+              "google_cloud_pipeline_components.container.v1.vertex_notification_email.executor"
+            ],
+            "image": "gcr.io/ml-pipeline/google-cloud-pipeline-components:1.0.24"
+          }
         }
       }
     },
@@ -180,121 +346,55 @@
     "root": {
       "dag": {
         "tasks": {
-          "filter-input": {
-            "cachingOptions": {
-              "enableCache": true
-            },
+          "exit-handler-1": {
             "componentRef": {
-              "name": "comp-filter-input"
+              "name": "comp-exit-handler-1"
             },
             "inputs": {
               "parameters": {
-                "config_json": {
-                  "componentInputParameter": "config_json_t"
-                },
-                "periodo": {
+                "pipelineparam--AAAAMM": {
                   "componentInputParameter": "AAAAMM"
                 },
-                "run_id": {
+                "pipelineparam--config_json_t": {
+                  "componentInputParameter": "config_json_t"
+                },
+                "pipelineparam--run_id": {
                   "componentInputParameter": "run_id"
                 }
               }
             },
             "taskInfo": {
-              "name": "FILTER DATA INPUT"
+              "name": "Execute pipeline prediction"
             }
           },
-          "process-predict": {
-            "cachingOptions": {
-              "enableCache": true
-            },
+          "vertex-pipelines-notification-email": {
             "componentRef": {
-              "name": "comp-process-predict"
+              "name": "comp-vertex-pipelines-notification-email"
             },
             "dependentTasks": [
-              "transform-data"
+              "exit-handler-1"
             ],
             "inputs": {
               "parameters": {
-                "config_json": {
-                  "componentInputParameter": "config_json_t"
-                },
-                "periodo": {
-                  "taskOutputParameter": {
-                    "outputParameterKey": "periodo_out",
-                    "producerTask": "transform-data"
+                "pipeline_task_final_status": {
+                  "taskFinalStatus": {
+                    "producerTask": "exit-handler-1"
                   }
                 },
-                "pipeline_name": {
-                  "taskOutputParameter": {
-                    "outputParameterKey": "pipeline_name",
-                    "producerTask": "transform-data"
-                  }
-                },
-                "run_id": {
-                  "componentInputParameter": "run_id"
-                }
-              }
-            },
-            "taskInfo": {
-              "name": "PROCESS PREDICT"
-            }
-          },
-          "send-out": {
-            "cachingOptions": {
-              "enableCache": true
-            },
-            "componentRef": {
-              "name": "comp-send-out"
-            },
-            "dependentTasks": [
-              "process-predict"
-            ],
-            "inputs": {
-              "parameters": {
-                "config_json": {
-                  "componentInputParameter": "config_json_t"
-                },
-                "periodo": {
-                  "taskOutputParameter": {
-                    "outputParameterKey": "Output",
-                    "producerTask": "process-predict"
+                "recipients": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": "[\"mori.brenis.junior@gmail.com\"]"
+                    }
                   }
                 }
               }
             },
             "taskInfo": {
-              "name": "SEND OUT"
-            }
-          },
-          "transform-data": {
-            "cachingOptions": {
-              "enableCache": true
+              "name": "NOTIFICATION_EMAIL"
             },
-            "componentRef": {
-              "name": "comp-transform-data"
-            },
-            "dependentTasks": [
-              "filter-input"
-            ],
-            "inputs": {
-              "parameters": {
-                "config_json": {
-                  "componentInputParameter": "config_json_t"
-                },
-                "periodo": {
-                  "taskOutputParameter": {
-                    "outputParameterKey": "Output",
-                    "producerTask": "filter-input"
-                  }
-                },
-                "run_id": {
-                  "componentInputParameter": "run_id"
-                }
-              }
-            },
-            "taskInfo": {
-              "name": "TRANSFORM DATA"
+            "triggerPolicy": {
+              "strategy": "ALL_UPSTREAM_TASKS_COMPLETED"
             }
           }
         }

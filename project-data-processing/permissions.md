@@ -88,6 +88,7 @@ Para la cuenta de servicio creada se le asignan los siguientes permisos:
 
 1. A nivel del proyecto `gcp-processing-vertex-prod-us`:
     - Ejecutor de trabajos de Cloud Run
+    - Usuario de Agent Platform
 
 
 ## Impersonalzicion de SA de Scheduler a Cloud Run 
