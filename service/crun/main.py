@@ -5,6 +5,8 @@ import pytz
 from uuid import uuid4
 import json
 import argparse
+import re
+from google.cloud import bigquery
 
 def run_pipeline(periodo: str):
 
@@ -41,6 +43,52 @@ def run_pipeline(periodo: str):
         # GSA
         "GSA_NAME":os.environ["GSA_NAME"] 
     }
+
+    def validar_periodo(periodo: str) -> str:
+        if not re.fullmatch(r"\d{6}", periodo):
+            raise ValueError(
+                f"El período debe tener formato AAAAMM. Valor recibido: {periodo}"
+            )
+
+        datetime.strptime(periodo, "%Y%m")
+        return periodo
+
+
+    def resolver_periodo(periodo: str | None, config: dict) -> str:
+        # Período enviado manualmente
+        if periodo and periodo.upper() != "AUTO":
+            return validar_periodo(periodo)
+
+        # Período automático: toma MAX(periodo) desde la fuente
+        project_id = config["GCP_PROJECT_ID"]
+        project_id_input = config["GCP_PROJECT_ID_INPUT"]
+        dataset_id_input = config["BQ_DATASET_ID_INPUT"]
+        table_id_input = config["BQ_TABLE_ID_INPUT"]
+
+        table_id = f"{project_id_input}.{dataset_id_input}.{table_id_input}"
+
+        query = f"""
+            SELECT MAX(periodo) AS periodo_maximo
+            FROM `{table_id}`
+            WHERE periodo IS NOT NULL
+        """
+
+        client = bigquery.Client(project=project_id)
+        row = next(iter(client.query(query).result()), None)
+
+        if row is None or row["periodo_maximo"] is None:
+            raise ValueError(
+                f"No se encontró un período válido en la tabla {table_id}."
+            )
+
+        periodo_resuelto = str(int(row["periodo_maximo"]))
+
+        print(f"Período automático resuelto: {periodo_resuelto}")
+        return validar_periodo(periodo_resuelto)
+
+    periodo = resolver_periodo(periodo, pipeline_config)
+
+
 
     bucket_name = pipeline_config["GCP_BUCKET_NAME"]
     model_project = pipeline_config["GCP_MODEL_PROJECT"]
@@ -86,7 +134,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--periodo",
-        required=True,
+        required=False,
+        default = "AUTO",
         help="Período en formato AAAAMM. Ejemplo: 202606.",
     )
 

@@ -1,0 +1,10 @@
+gcloud init
+
+Realizar configuracion de cuenta y zona
+
+gcloud builds submit --tag gcr.io/gcp-processing-vertex-prod-us/pipeline-casas-job-runner
+
+gcloud run jobs create run-pipeline-casas-job `
+  --image gcr.io/gcp-processing-vertex-prod-us/pipeline-casas-job-runner `
+  --region us-central1 `
+  --service-account sa-crun-crun-prod-01@gcp-processing-vertex-prod-us.iam.gserviceaccount.com
