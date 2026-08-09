@@ -58,6 +58,11 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
     --member="serviceAccount:$SERVICE_ACCOUNT" \
     --role="roles/aiplatform.user"
 
+# Asignar el rol Vertex AI User
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+    --member="serviceAccount:$SERVICE_ACCOUNT" \
+    --role="roles/iam.serviceAccountUser"
+
 ```
 
 3. A nivel de la cuenta de servicio agregarle los siguientes permisos:
