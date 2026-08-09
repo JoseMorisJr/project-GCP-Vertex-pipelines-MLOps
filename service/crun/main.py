@@ -7,6 +7,7 @@ import json
 import argparse
 import re
 from google.cloud import bigquery
+from typing import Optional
 
 def run_pipeline(periodo: str):
 
@@ -54,7 +55,7 @@ def run_pipeline(periodo: str):
         return periodo
 
 
-    def resolver_periodo(periodo: str | None, config: dict) -> str:
+    def resolver_periodo(periodo: Optional[str], config: dict) -> str:
         # Período enviado manualmente
         if periodo and periodo.upper() != "AUTO":
             return validar_periodo(periodo)
@@ -135,7 +136,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--periodo",
         required=False,
-        default = "AUTO",
+        default = None,
         help="Período en formato AAAAMM. Ejemplo: 202606.",
     )
 

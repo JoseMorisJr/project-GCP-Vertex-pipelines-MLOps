@@ -1,2 +1,7 @@
-google-cloud-aiplatform[pipelines]
+numpy==1.26.4
+pyarrow==9.0.0
+pandas==1.5.3
+
+google-cloud-aiplatform==1.18.0
+google-cloud-bigquery==2.34.4
 pytz
