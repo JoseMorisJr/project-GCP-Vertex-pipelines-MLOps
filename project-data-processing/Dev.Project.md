@@ -1,8 +1,12 @@
 1. Crear el projecto en GCP.
     - Nombre: `gcp-processing-vertex-prod-us`
 
-2. Crear la cuenta de servicio.
+2. Crear la cuentas de servicio.
     - Nombre: `sa-processing-crun-vertex-prod@gcp-processing-vertex-prod-us.iam.gserviceaccount.com`
+    - Nombre: `sa-crun-crun-prod-01@gcp-processing-vertex-prod-us.iam.gserviceaccount.com`
+    - Nombre: `sa-scheduler-scheduler-prod-01@gcp-processing-vertex-prod-us.iam.gserviceaccount.com`
+    - Nombre: `sa-admin-storage-prod-01@gcp-processing-vertex-prod-us.iam.gserviceaccount.com`
+    - Nombre: `sa-data-adm-bigquery-prod-01@gcp-processing-vertex-prod-us.iam.gserviceaccount.com`
 
 3. Dar los permisos que se especifican en permissions.
 
@@ -26,5 +30,3 @@
 9. Ejecutar el sql que se encuentra en scripts/ddl_data_input.sql en la consola de BigQuery del proyecto
 
 10. Ejecutar el notebook que se encuentra en scripts/Add_data_BQ.ipynb
-
-11. 

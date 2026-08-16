@@ -1,22 +1,14 @@
 
 ## Permisos para Cuenta Servicio (sa-processing-crun-vertex-prod@gcp-processing-vertex-prod-us.iam.gserviceaccount.com)
 
-Para la cuenta de servicio creada se le asignan los siguientes permisos:
+Para la cuentas de servicios creadas se le asignan los siguientes permisos:
 
-1. A nivel del servicio de BigQuery del proyecto `gcp-data-bigquery-prod-us-east`:
-    - Visualizador de datos de BigQuery
-
-2. Ejecutar los permisos para la actual cuenta de servicio en la terminal de GCP: 
+1. Ejecutar los permisos para la actual cuenta de servicio en la terminal de GCP: 
 
 ```bash
 #Define variables
 SERVICE_ACCOUNT="sa-processing-crun-vertex-prod@gcp-processing-vertex-prod-us.iam.gserviceaccount.com"
 PROJECT_ID="gcp-processing-vertex-prod-us"
-
-# Asignar el rol Artifact Registry Reader
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-    --member="serviceAccount:$SERVICE_ACCOUNT" \
-    --role="roles/artifactregistry.reader"
 
 # Asignar el rol BigQuery Job User
 gcloud projects add-iam-policy-binding $PROJECT_ID \
@@ -65,36 +57,39 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
 
 ```
 
-3. A nivel de la cuenta de servicio agregarle los siguientes permisos:
-    - Editor de storage
-    - Creador de objetos de storage
-    - Visualizador de objetos de storage
-    - Usuario de objetos de storage
+2. A nivel de la cuenta de servicio agregarle los siguientes permisos:
     - Visualizador de datos de BigQuery
     - Editor de datos de BigQuery
+    - Usuario de trabajo de Bigquery
+    - Visualizador de recursos de BigQuery
+    - Usuario de sesión de lectura de BigQuery
+    - Creador de objetos de Storage
+    - Editor de Storage
+    - Usuario de objetos de almacenamiento
+    - Visualizador de objetos de Storage
+
 
 
 ## Permisos para Cuenta Servicio (sa-scheduler-scheduler-prod-01@gcp-processing-vertex-prod-us.iam.gserviceaccount.com)
 
-Para la cuenta de servicio creada se le asignan los siguientes permisos:
-
 1. A nivel del proyecto `gcp-processing-vertex-prod-us`:
+    - Ejecutor de trabajos de Cloud Run
     - Invocador de Cloud Run
 
 
 ## Permisos para Cuenta Servicio (sa-crun-crun-prod-01@gcp-processing-vertex-prod-us.iam.gserviceaccount.com)
 
-Para la cuenta de servicio creada se le asignan los siguientes permisos:
-
 1. A nivel del proyecto `gcp-processing-vertex-prod-us`:
     - Ejecutor de trabajos de Cloud Run
     - Usuario de Agent Platform
-    - Usuario de trabajo de BigQuery
+    - Lector de Artifact Registry
+    - Usuario de trabajo de BigQuery.
     
 ## Impersonalzicion de SA de Scheduler a Cloud Run 
 
-- Usuario de cuenta de servicio.
+    - Usuario de cuenta de servicio.
+    - Creador de tokens de identidad de OpenID Connect para cuentas de servicio
 
 ## Impersonalzicion de SA de Cloud Run a Vertex 
 
-- Usuario de cuenta de servicio.
+    - Usuario de cuenta de servicio.
