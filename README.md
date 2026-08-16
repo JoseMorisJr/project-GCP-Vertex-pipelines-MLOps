@@ -112,93 +112,13 @@ Permisos relevantes definidos en los archivos `permissions.md`:
 
 El detalle visual de estas relaciones está disponible en el [Diagrama de cuentas de servicio y permisos](Diagrama_GSA.drawio).
 
-## 7. Evidencias de la implementación
 
-### 7.1 Ejecución programada
 
-Cloud Scheduler registra una ejecución sin errores del Job programado.
-
-![Cloud Scheduler: ejecución programada correcta](<work/images/Captura de pantalla 2026-08-15 202722.png>)
-
-El Job de Cloud Run fue invocado y finalizó correctamente.
-
-![Historial del Cloud Run Job](<work/images/Captura de pantalla 2026-08-15 203047.png>)
-
-![Detalle exitoso de la tarea de Cloud Run](<work/images/Captura de pantalla 2026-08-15 203107.png>)
-
-### 7.2 Ejecución del pipeline de Vertex AI
-
-La ejecución de Vertex AI fue iniciada desde Cloud Run.
-
-![Lista de ejecuciones de Vertex AI](<work/images/Captura de pantalla 2026-08-15 203234.png>)
-
-El grafo de ejecución muestra todos los componentes completados correctamente: filtrado, transformación, predicción, publicación y notificación.
-
-![Grafo exitoso del pipeline de Vertex AI](<work/images/Captura de pantalla 2026-08-15 203648.png>)
-
-### 7.3 Permisos y cuentas de servicio
-
-Configuración IAM del proyecto de procesamiento.
-
-![Roles en el proyecto Processing](<work/images/Captura de pantalla 2026-08-15 203807.png>)
-
-Relación de acceso de la cuenta de Cloud Run hacia la cuenta de ejecución de Vertex AI.
-
-![Acceso de Cloud Run a la cuenta de Vertex](<work/images/Captura de pantalla 2026-08-15 203836.png>)
-
-Relación de acceso de Scheduler hacia la cuenta utilizada por Cloud Run.
-
-![Acceso de Scheduler a la cuenta de Cloud Run](<work/images/Captura de pantalla 2026-08-15 203900.png>)
-
-### 7.4 Tablas intermedias y transformación
-
-El dataset de Processing contiene la tabla de variables de entrada, las tres tablas temporales y la tabla de auditoría del modelo.
-
-![Tablas del dataset de Processing](<work/images/Captura de pantalla 2026-08-15 203957.png>)
-
-La tabla `temp_data_transformed` evidencia las variables procesadas y escaladas antes de la predicción.
-
-![Vista previa de datos transformados](<work/images/Captura de pantalla 2026-08-15 204029.png>)
-
-### 7.5 Acceso a la fuente de datos
-
-La cuenta de servicio de Vertex cuenta con acceso para ejecutar trabajos de BigQuery en el proyecto Input.
-
-![Permiso de BigQuery en el proyecto Input](<work/images/Captura de pantalla 2026-08-15 204111.png>)
-
-La tabla fuente contiene el campo `periodo` y los atributos de viviendas que alimentan el pipeline.
-
-![Tabla fuente input_data](<work/images/Captura de pantalla 2026-08-15 204332.png>)
-
-### 7.6 Publicación de resultados
-
-El proyecto Output contiene las dos tablas de destino: última vista e histórico.
-
-![Tablas finales del proyecto Output](<work/images/Captura de pantalla 2026-08-15 204209.png>)
-
-La tabla auxiliar conserva la última vista del universo procesado.
-
-![Vista de ba_aux_modelo_universo](<work/images/Captura de pantalla 2026-08-15 204229.png>)
-
-La tabla histórica almacena las ejecuciones publicadas por período.
-
-![Vista de ba_modelo_propension_inscripcion](<work/images/Captura de pantalla 2026-08-15 204255.png>)
-
-La configuración IAM del proyecto Output permite administrar las tablas de publicación.
-
-![Permisos del proyecto Output](<work/images/Captura de pantalla 2026-08-15 204140.png>)
-
-### 7.7 Almacenamiento de artefactos
-
-El bucket del proyecto Processing centraliza modelos y especificaciones del pipeline.
-
-![Bucket de Cloud Storage con rutas de artefactos](<work/images/Captura de pantalla 2026-08-15 204413.png>)
-
-## 8. Resultado
+## 7. Resultado
 
 La solución opera de forma automatizada: toma el período solicitado —o el más reciente disponible—, procesa los datos de entrada, aplica el pipeline de transformación y el modelo de Machine Learning, y publica los resultados en BigQuery. La evidencia adjunta confirma la ejecución correcta de Cloud Scheduler, Cloud Run Job y los componentes del pipeline de Vertex AI.
 
-## 9. Repositorios y archivos de referencia
+## 8. Repositorios y archivos de referencia
 
 - [Diagrama de arquitectura y flujo de datos](Diagrama_Proyecto.drawio)
 - [Diagrama de cuentas de servicio y permisos](Diagrama_GSA.drawio)
