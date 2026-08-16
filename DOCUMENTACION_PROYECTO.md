@@ -8,6 +8,13 @@ La solución está separada en tres proyectos de Google Cloud para diferenciar l
 
 ## 2. Arquitectura
 
+Los diagramas editables que acompañan esta documentación son:
+
+- [Diagrama de arquitectura y flujo de datos](Diagrama_Proyecto.drawio): representa los tres proyectos, los recursos de GCP, las tablas intermedias, los artefactos y la secuencia Scheduler → Cloud Run → Vertex AI.
+- [Diagrama de cuentas de servicio y permisos](Diagrama_GSA.drawio): representa las identidades de ejecución y las relaciones de acceso entre Cloud Scheduler, Cloud Run, Vertex AI, BigQuery y Cloud Storage.
+
+> Para editar o visualizar los diagramas, abrir los archivos `.drawio` con [diagrams.net](https://app.diagrams.net/).
+
 ```mermaid
 flowchart LR
     Scheduler["Cloud Scheduler"] --> CR["Cloud Run Job"]
@@ -103,6 +110,8 @@ Permisos relevantes definidos en los archivos `permissions.md`:
 
 > La cuenta adjunta a cada recurso usa sus propios permisos durante la ejecución. El permiso **Service Account User** permite usar una cuenta de servicio en un recurso, pero no hereda automáticamente los permisos de BigQuery o Storage de otra cuenta.
 
+El detalle visual de estas relaciones está disponible en el [Diagrama de cuentas de servicio y permisos](Diagrama_GSA.drawio).
+
 ## 7. Evidencias de la implementación
 
 ### 7.1 Ejecución programada
@@ -191,6 +200,8 @@ La solución opera de forma automatizada: toma el período solicitado —o el m�
 
 ## 9. Repositorios y archivos de referencia
 
+- [Diagrama de arquitectura y flujo de datos](Diagrama_Proyecto.drawio)
+- [Diagrama de cuentas de servicio y permisos](Diagrama_GSA.drawio)
 - [Configuración del proyecto Input](project-data-input/Dev-Project.md)
 - [Permisos del proyecto Input](project-data-input/permissions.md)
 - [Configuración del proyecto Processing](project-data-processing/Dev.Project.md)
